@@ -15,13 +15,10 @@ class FileManager(QMainWindow):
         self.setWindowTitle("PyQt File Manager")
         self.setGeometry(100, 100, 1200, 800)
 
-        # Create main layout
         self.main_layout = QVBoxLayout()
 
-        # Splitter for two views
         self.splitter = QSplitter(Qt.Horizontal)
 
-        # File system models and tree views
         self.model_left = QFileSystemModel()
         self.model_left.setRootPath('')
 
@@ -44,30 +41,24 @@ class FileManager(QMainWindow):
         self.tree_right.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos, self.tree_right))
         self.tree_right.doubleClicked.connect(self.open_item)
 
-        # Add tree views to splitter
         self.splitter.addWidget(self.tree_left)
         self.splitter.addWidget(self.tree_right)
 
-        # Combo boxes for navigation
         self.combo_left = QComboBox()
         self.combo_right = QComboBox()
 
-        # Set fixed height for combo boxes
         self.combo_left.setFixedHeight(40)
         self.combo_right.setFixedHeight(40)
 
-        # Populate combo boxes with available drives and Desktop
         self.populate_combo_boxes()
 
         self.combo_left.currentIndexChanged.connect(lambda: self.change_root(self.combo_left, self.tree_left, self.model_left))
         self.combo_right.currentIndexChanged.connect(lambda: self.change_root(self.combo_right, self.tree_right, self.model_right))
 
-        # Layout for combo boxes
         self.combo_layout = QHBoxLayout()
         self.combo_layout.addWidget(self.combo_left)
         self.combo_layout.addWidget(self.combo_right)
 
-        # Set up main widget
         self.container = QWidget()
         self.main_layout.addWidget(self.splitter)
         self.main_layout.addLayout(self.combo_layout)
@@ -75,7 +66,6 @@ class FileManager(QMainWindow):
 
         self.setCentralWidget(self.container)
 
-        # Clipboard for copy-paste
         self.clipboard = None
 
     def populate_combo_boxes(self):
@@ -193,7 +183,6 @@ class FileManager(QMainWindow):
                 import ctypes
                 from ctypes import wintypes
 
-                # Подготовка ShellExecuteEx структуры
                 class SHELLEXECUTEINFO(ctypes.Structure):
                     _fields_ = [
                         ("cbSize", ctypes.c_ulong),
@@ -216,7 +205,6 @@ class FileManager(QMainWindow):
                 SEE_MASK_INVOKEIDLIST = 0x0000000C
                 SW_SHOW = 5
 
-                # Инициализация структуры
                 sei = SHELLEXECUTEINFO()
                 sei.cbSize = ctypes.sizeof(SHELLEXECUTEINFO)
                 sei.fMask = SEE_MASK_INVOKEIDLIST
@@ -228,11 +216,10 @@ class FileManager(QMainWindow):
                 sei.nShow = SW_SHOW
                 sei.hInstApp = None
 
-                # Вызов ShellExecuteEx
                 result = ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei))
 
                 if not result:
-                    raise ctypes.WinError()  # Генерирует исключение с системным сообщением
+                    raise ctypes.WinError() 
             else:
                 QMessageBox.information(self, "Свойства", f"Путь: {file_path}")
         except Exception as e:
