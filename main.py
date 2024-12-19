@@ -14,7 +14,7 @@ class FileManager(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("PyQt File Manager")
-        self.setGeometry(100, 100, 1600, 800)
+        self.setGeometry(150, 150, 1600, 800)
 
         self.main_layout = QVBoxLayout()
 
@@ -34,6 +34,7 @@ class FileManager(QMainWindow):
         self.tree_left.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree_left.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos, self.tree_left))
         self.tree_left.doubleClicked.connect(self.open_item)
+        self.tree_left.setSortingEnabled(True)
 
         # Настройки Drag-and-Drop для левого дерева
         self.tree_left.setDragEnabled(True)
@@ -48,6 +49,7 @@ class FileManager(QMainWindow):
         self.tree_right.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree_right.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos, self.tree_right))
         self.tree_right.doubleClicked.connect(self.open_item)
+        self.tree_right.setSortingEnabled(True)
 
         # Настройки Drag-and-Drop для правого дерева
         self.tree_right.setDragEnabled(True)
@@ -261,6 +263,12 @@ class FileManager(QMainWindow):
 class CustomTreeView(QTreeView):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+
+        # Включаем сортировку
+        self.setSortingEnabled(True)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -276,29 +284,25 @@ class CustomTreeView(QTreeView):
 
     def dropEvent(self, event):
         if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
-                source_path = url.toLocalFile()
-                print(f"Источник: {source_path}")
+            source_path = event.mimeData().urls()[0].toLocalFile()
 
-                # Получаем индекс под курсором
-                index = self.indexAt(event.pos())
-                if not index.isValid():
-                    print("Ошибка: Невалидный индекс назначения.")
-                    return
-
+            # Определяем папку назначения
+            index = self.indexAt(event.pos())
+            if not index.isValid():
+                destination_path = self.model().rootPath()
+            else:
                 destination_path = self.model().filePath(index)
-                print(f"Назначение: {destination_path}")
-
                 if not os.path.isdir(destination_path):
-                    print("Ошибка: Путь назначения не папка.")
+                    QMessageBox.warning(self, "Ошибка", "Перемещать файлы можно только в папки.")
                     return
 
-                try:
-                    new_path = os.path.join(destination_path, os.path.basename(source_path))
-                    shutil.move(source_path, new_path)
-                    print(f"Файл перемещён: {source_path} -> {new_path}")
-                except Exception as e:
-                    print(f"Ошибка перемещения: {e}")
+            # Перенос файла
+            try:
+                new_path = os.path.join(destination_path, os.path.basename(source_path))
+                shutil.move(source_path, new_path)
+                QMessageBox.information(self, "Успех", f"Файл {source_path} перемещён в {new_path}")
+            except Exception as e:
+                QMessageBox.warning(self, "Ошибка", f"Ошибка перемещения: {e}")
 
 
 if __name__ == '__main__':
