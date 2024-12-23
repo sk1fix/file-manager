@@ -197,6 +197,9 @@ class FileManager(QMainWindow):
 
     def delete_item(self, file_path):
         """Delete the selected file or folder (move to Trash or delete directly)."""
+        if os.path.abspath(file_path) in [f"{drive}:\\" for drive in string.ascii_uppercase if os.path.exists(f"{drive}:\\")]:
+            QMessageBox.warning(self, "Ошибка", "Нельзя удалить корневой диск! Выберите файл или папку!")
+            return
         reply = QMessageBox.question(
             self, "Удалить", f"Вы уверены, что хотите удалить {file_path}?", QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
