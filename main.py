@@ -32,7 +32,8 @@ class FileManager(QMainWindow):
         self.tree_left.setRootIndex(self.model_left.index(''))
         self.tree_left.setColumnWidth(0, 250)
         self.tree_left.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.tree_left.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos, self.tree_left))
+        self.tree_left.customContextMenuRequested.connect(
+            lambda pos: self.show_context_menu(pos, self.tree_left))
         self.tree_left.doubleClicked.connect(self.open_item)
         self.tree_left.setSortingEnabled(True)
 
@@ -47,7 +48,8 @@ class FileManager(QMainWindow):
         self.tree_right.setRootIndex(self.model_right.index(''))
         self.tree_right.setColumnWidth(0, 250)
         self.tree_right.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.tree_right.customContextMenuRequested.connect(lambda pos: self.show_context_menu(pos, self.tree_right))
+        self.tree_right.customContextMenuRequested.connect(
+            lambda pos: self.show_context_menu(pos, self.tree_right))
         self.tree_right.doubleClicked.connect(self.open_item)
         self.tree_right.setSortingEnabled(True)
 
@@ -141,6 +143,11 @@ class FileManager(QMainWindow):
         properties_action.triggered.connect(
             lambda: self.show_properties(file_path))
         menu.addAction(properties_action)
+
+        new_folder_action = QAction("Создать папку", self)
+        new_folder_action.triggered.connect(
+            lambda: self.create_new_folder(file_path))
+        menu.addAction(new_folder_action)
 
         menu.exec_(tree_view.viewport().mapToGlobal(position))
 
@@ -249,6 +256,21 @@ class FileManager(QMainWindow):
         except Exception as e:
             QMessageBox.warning(
                 self, "Ошибка", f"Не удалось открыть свойства: {e}")
+    
+    def create_new_folder(self, parent_path):
+        """Create a new folder in the selected directory."""
+        if not os.path.isdir(parent_path):
+            QMessageBox.warning(self, "Ошибка", "Нельзя создать папку в файле.")
+            return
+
+        new_folder_name, ok = QInputDialog.getText(self, "Создать папку", "Введите имя папки:")
+        if ok and new_folder_name:
+            new_folder_path = os.path.join(parent_path, new_folder_name)
+            try:
+                os.makedirs(new_folder_path)
+                QMessageBox.information(self, "Успех", f"Папка '{new_folder_name}' создана.")
+            except Exception as e:
+                QMessageBox.warning(self, "Ошибка", f"Не удалось создать папку: {e}")
 
     def open_item(self, index):
         """Open the selected file or folder."""
@@ -293,14 +315,17 @@ class CustomTreeView(QTreeView):
             else:
                 destination_path = self.model().filePath(index)
                 if not os.path.isdir(destination_path):
-                    QMessageBox.warning(self, "Ошибка", "Перемещать файлы можно только в папки.")
+                    QMessageBox.warning(
+                        self, "Ошибка", "Перемещать файлы можно только в папки.")
                     return
 
             # Перенос файла
             try:
-                new_path = os.path.join(destination_path, os.path.basename(source_path))
+                new_path = os.path.join(
+                    destination_path, os.path.basename(source_path))
                 shutil.move(source_path, new_path)
-                QMessageBox.information(self, "Успех", f"Файл {source_path} перемещён в {new_path}")
+                QMessageBox.information(
+                    self, "Успех", f"Файл {source_path} перемещён в {new_path}")
             except Exception as e:
                 QMessageBox.warning(self, "Ошибка", f"Ошибка перемещения: {e}")
 
