@@ -3,7 +3,15 @@ import os
 import string
 import shutil
 import subprocess
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QTreeView, QVBoxLayout, QWidget, QSplitter, QComboBox, QHBoxLayout, QMenu, QAction, QMessageBox, QInputDialog
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow,
+    QFileSystemModel, QTreeView,
+    QVBoxLayout, QWidget,
+    QSplitter, QComboBox,
+    QHBoxLayout, QMenu,
+    QAction, QMessageBox,
+    QInputDialog
+)
 from PyQt5.QtCore import Qt, QModelIndex
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtCore import QUrl
@@ -12,14 +20,14 @@ from PyQt5.QtCore import QUrl
 class FileManager(QMainWindow):
     def __init__(self):
         super().__init__()
-
         self.setWindowTitle("PyQt File Manager")
         self.setGeometry(150, 150, 1600, 800)
-
+        self.action_stack = []  # Стек для действий (Ctrl+Z)
         self.main_layout = QVBoxLayout()
 
         self.splitter = QSplitter(Qt.Horizontal)
 
+        # Модели файловой системы
         self.model_left = QFileSystemModel()
         self.model_left.setRootPath('')
 
@@ -27,7 +35,7 @@ class FileManager(QMainWindow):
         self.model_right.setRootPath('')
 
         # Создание левого дерева
-        self.tree_left = CustomTreeView()
+        self.tree_left = CustomTreeView(self)  # Передаём ссылку на FileManager
         self.tree_left.setModel(self.model_left)
         self.tree_left.setRootIndex(self.model_left.index(''))
         self.tree_left.setColumnWidth(0, 250)
@@ -43,7 +51,7 @@ class FileManager(QMainWindow):
         self.tree_left.setDropIndicatorShown(True)
 
         # Создание правого дерева
-        self.tree_right = CustomTreeView()
+        self.tree_right = CustomTreeView(self)  # Передаём ссылку на FileManager
         self.tree_right.setModel(self.model_right)
         self.tree_right.setRootIndex(self.model_right.index(''))
         self.tree_right.setColumnWidth(0, 250)
@@ -57,28 +65,32 @@ class FileManager(QMainWindow):
         self.tree_right.setDragEnabled(True)
         self.tree_right.setAcceptDrops(True)
         self.tree_right.setDropIndicatorShown(True)
-
         # Добавление деревьев в интерфейс
         self.splitter.addWidget(self.tree_left)
         self.splitter.addWidget(self.tree_right)
 
+        # Создание выпадающих списков для выбора корневого каталога
         self.combo_left = QComboBox()
         self.combo_right = QComboBox()
 
         self.combo_left.setFixedHeight(40)
         self.combo_right.setFixedHeight(40)
 
+        # Заполнение выпадающих списков доступными дисками
         self.populate_combo_boxes()
 
+        # Изменение корня дерева при изменении выбора в выпадающем списке
         self.combo_left.currentIndexChanged.connect(
             lambda: self.change_root(self.combo_left, self.tree_left, self.model_left))
         self.combo_right.currentIndexChanged.connect(lambda: self.change_root(
             self.combo_right, self.tree_right, self.model_right))
 
+        # Компоновка выпадающих списков
         self.combo_layout = QHBoxLayout()
         self.combo_layout.addWidget(self.combo_left)
         self.combo_layout.addWidget(self.combo_right)
 
+        # Основная компоновка
         self.container = QWidget()
         self.main_layout.addWidget(self.splitter)
         self.main_layout.addLayout(self.combo_layout)
@@ -86,7 +98,7 @@ class FileManager(QMainWindow):
 
         self.setCentralWidget(self.container)
 
-        self.clipboard = None
+        self.clipboard = None  # Буфер обмена для копирования и вставки
 
     def populate_combo_boxes(self):
         """Populate combo boxes with available drives and Desktop."""
@@ -164,13 +176,14 @@ class FileManager(QMainWindow):
             destination_path = tree_view.model().filePath(destination_index)
             if os.path.isdir(destination_path):
                 try:
+                    new_path = os.path.join(destination_path, os.path.basename(self.clipboard))
                     if os.path.isdir(self.clipboard):
-                        shutil.copytree(self.clipboard, os.path.join(
-                            destination_path, os.path.basename(self.clipboard)))
+                        shutil.copytree(self.clipboard, new_path)
                     else:
-                        shutil.copy(self.clipboard, destination_path)
-                    QMessageBox.information(
-                        self, "Вставить", f"Вставлено в: {destination_path}")
+                        shutil.copy(self.clipboard, new_path)
+                    # Запись действия вставки
+                    self.record_action("paste", source=self.clipboard, destination=new_path)
+                    QMessageBox.information(self, "Вставить", f"Вставлено в: {destination_path}")
                 except Exception as e:
                     QMessageBox.warning(self, "Ошибка", f"Ошибка вставки: {e}")
 
@@ -182,14 +195,13 @@ class FileManager(QMainWindow):
             self, "Переименовать", "Введите новое имя:", text=base_name)
         if ok and new_name:
             try:
-                new_path = os.path.join(os.path.dirname(
-                    file_path), new_name + file_extension)
+                new_path = os.path.join(os.path.dirname(file_path), new_name + file_extension)
                 os.rename(file_path, new_path)
-                QMessageBox.information(
-                    self, "Переименовать", f"Переименовано: {file_path} -> {new_path}")
+                # Запись действия переименования
+                self.record_action("rename", old_path=file_path, new_path=new_path)
+                QMessageBox.information(self, "Переименовать", f"Переименовано: {file_path} -> {new_path}")
             except Exception as e:
-                QMessageBox.warning(
-                    self, "Ошибка", f"Ошибка переименования: {e}")
+                QMessageBox.warning(self, "Ошибка", f"Ошибка переименования: {e}")
 
     def delete_item(self, file_path):
         """Delete the selected file or folder."""
@@ -197,12 +209,15 @@ class FileManager(QMainWindow):
             self, "Удалить", f"Вы уверены, что хотите удалить {file_path}?", QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
             try:
-                if os.path.isdir(file_path):
+                is_dir = os.path.isdir(file_path)
+                backup_path = shutil.copytree(file_path, file_path + "_backup") if is_dir else shutil.copy(file_path, file_path + "_backup")
+                if is_dir:
                     shutil.rmtree(file_path)
                 else:
                     os.remove(file_path)
-                QMessageBox.information(
-                    self, "Удалить", f"Удалено: {file_path}")
+                # Запись действия удаления
+                self.record_action("delete", original_path=file_path, backup_path=backup_path, is_dir=is_dir)
+                QMessageBox.information(self, "Удалить", f"Удалено: {file_path}")
             except Exception as e:
                 QMessageBox.warning(self, "Ошибка", f"Ошибка удаления: {e}")
 
@@ -256,9 +271,8 @@ class FileManager(QMainWindow):
         except Exception as e:
             QMessageBox.warning(
                 self, "Ошибка", f"Не удалось открыть свойства: {e}")
-    
+
     def create_new_folder(self, parent_path):
-        """Create a new folder in the selected directory."""
         if not os.path.isdir(parent_path):
             QMessageBox.warning(self, "Ошибка", "Нельзя создать папку в файле.")
             return
@@ -268,6 +282,8 @@ class FileManager(QMainWindow):
             new_folder_path = os.path.join(parent_path, new_folder_name)
             try:
                 os.makedirs(new_folder_path)
+                # Запись действия создания папки
+                self.record_action("create_folder", folder_path=new_folder_path)
                 QMessageBox.information(self, "Успех", f"Папка '{new_folder_name}' создана.")
             except Exception as e:
                 QMessageBox.warning(self, "Ошибка", f"Не удалось создать папку: {e}")
@@ -280,11 +296,76 @@ class FileManager(QMainWindow):
                 self, "Открыть", f"Открыта папка: {file_path}")
         else:
             QDesktopServices.openUrl(QUrl.fromLocalFile(file_path))
+        
+    def keyPressEvent(self, event):
+        """Handle key press events."""
+        tree_view = self.tree_left if self.tree_left.hasFocus() else self.tree_right
+        index = tree_view.currentIndex()
+        if not index.isValid():
+            return
+
+        file_path = tree_view.model().filePath(index)
+
+        if event.key() == Qt.Key_Delete:
+            # Удаление
+            self.delete_item(file_path)
+        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Z:
+            # Отмена действия
+            self.undo_last_action()
+                
+    def record_action(self, action_type, **kwargs):
+        """Записывает действие в стек."""
+        self.action_stack.append({'type': action_type, 'data': kwargs})
+
+    def undo_last_action(self):
+        if not self.action_stack:
+            QMessageBox.information(self, "Отмена", "Нет действий для отмены.")
+            return
+
+        last_action = self.action_stack.pop()
+        action_type = last_action['type']
+        data = last_action['data']
+
+        try:
+            if action_type == "delete":
+                # Восстановление удалённого элемента
+                if data['is_dir']:
+                    shutil.copytree(data['backup_path'], data['original_path'])
+                else:
+                    shutil.copy(data['backup_path'], data['original_path'])
+                QMessageBox.information(self, "Отмена", "Удаление отменено.")
+            elif action_type == "rename":
+                # Отмена переименования
+                os.rename(data['new_path'], data['old_path'])
+                QMessageBox.information(self, "Отмена", "Переименование отменено.")
+            elif action_type == "paste":
+                # Удаление вставленного элемента
+                if os.path.isdir(data['destination']):
+                    shutil.rmtree(data['destination'])
+                else:
+                    os.remove(data['destination'])
+                QMessageBox.information(self, "Отмена", "Вставка отменена.")
+            elif action_type == "create_folder":
+                # Удаление созданной папки
+                if os.path.exists(data['folder_path']):
+                    shutil.rmtree(data['folder_path'])
+                    QMessageBox.information(self, "Отмена", "Создание папки отменено.")
+            elif action_type == "move":
+                # Перемещение обратно в исходное место
+                if os.path.exists(data['destination']):
+                    shutil.move(data['destination'], data['source'])
+                    QMessageBox.information(self, "Отмена", f"Перемещение отменено. {data['destination']} возвращён в {data['source']}.")
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Ошибка при отмене действия: {e}")
 
 
 class CustomTreeView(QTreeView):
-    def __init__(self, parent=None):
+    def __init__(self, file_manager, parent=None):
         super().__init__(parent)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.file_manager = file_manager  # Устанавливаем ссылку на FileManager
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
@@ -315,17 +396,15 @@ class CustomTreeView(QTreeView):
             else:
                 destination_path = self.model().filePath(index)
                 if not os.path.isdir(destination_path):
-                    QMessageBox.warning(
-                        self, "Ошибка", "Перемещать файлы можно только в папки.")
+                    QMessageBox.warning(self, "Ошибка", "Перемещать файлы можно только в папки.")
                     return
 
-            # Перенос файла
             try:
-                new_path = os.path.join(
-                    destination_path, os.path.basename(source_path))
+                new_path = os.path.join(destination_path, os.path.basename(source_path))
                 shutil.move(source_path, new_path)
-                QMessageBox.information(
-                    self, "Успех", f"Файл {source_path} перемещён в {new_path}")
+                # Запись действия перемещения
+                self.file_manager.record_action("move", source=source_path, destination=new_path)
+                QMessageBox.information(self, "Успех", f"Файл {source_path} перемещён в {new_path}")
             except Exception as e:
                 QMessageBox.warning(self, "Ошибка", f"Ошибка перемещения: {e}")
 
