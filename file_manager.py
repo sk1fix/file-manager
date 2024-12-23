@@ -2,7 +2,6 @@ import sys
 import os
 import string
 import shutil
-from send2trash import send2trash
 
 from PyQt5.QtWidgets import (
     QMainWindow,
