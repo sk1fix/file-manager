@@ -306,7 +306,13 @@ class FileManager(QMainWindow):
 
         file_path = tree_view.model().filePath(index)
 
-        if event.key() == Qt.Key_Delete:
+        if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_C:
+            # Копирование
+            self.copy_item(file_path)
+        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_V:
+            # Вставка
+            self.paste_item(tree_view)
+        elif event.key() == Qt.Key_Delete:
             # Удаление
             self.delete_item(file_path)
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Z:
@@ -318,6 +324,7 @@ class FileManager(QMainWindow):
         self.action_stack.append({'type': action_type, 'data': kwargs})
 
     def undo_last_action(self):
+        """Отменяет последнее действие."""
         if not self.action_stack:
             QMessageBox.information(self, "Отмена", "Нет действий для отмены.")
             return
