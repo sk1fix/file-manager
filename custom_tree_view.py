@@ -17,18 +17,21 @@ class CustomTreeView(QTreeView):
         self.setSortingEnabled(True)
 
     def dragEnterEvent(self, event):
+        """Handles the drag enter event. Allows dragging only if the data contains URLs."""
         if event.mimeData().hasUrls():
             event.accept()
         else:
             event.ignore()
 
     def dragMoveEvent(self, event):
+        """Handles the drag move event. Allows moving only if the data contains URLs."""
         if event.mimeData().hasUrls():
             event.accept()
         else:
             event.ignore()
 
     def dropEvent(self, event):
+        """Handles the drop event. Moves the file or folder to the target directory."""
         if event.mimeData().hasUrls():
             source_path = event.mimeData().urls()[0].toLocalFile()
             index = self.indexAt(event.pos())

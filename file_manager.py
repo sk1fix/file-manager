@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QAction, QMessageBox,
     QInputDialog
 )
-from PyQt5.QtCore import Qt, QModelIndex
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtCore import QUrl
 
@@ -22,7 +22,7 @@ from custom_tree_view import CustomTreeView
 class FileManager(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PyQt File Manager")
+        self.setWindowTitle("File Manager")
         self.setGeometry(150, 150, 1600, 800)
         self.action_stack = []
         self.main_layout = QVBoxLayout()
@@ -205,7 +205,7 @@ class FileManager(QMainWindow):
             self.direct_delete(file_path)
 
     def direct_delete(self, file_path):
-        """Удаление файла или папки напрямую с созданием резервной копии."""
+        """Deleting a file or folder directly while creating a backup copy."""
         try:
             is_dir = os.path.isdir(file_path)
             backup_dir = self.get_backup_path()
@@ -276,6 +276,7 @@ class FileManager(QMainWindow):
                 self, "Ошибка", f"Не удалось открыть свойства: {e}")
 
     def create_new_folder(self, parent_path):
+        """Creating a new folder"""
         if not os.path.isdir(parent_path):
             QMessageBox.warning(
                 self, "Ошибка", "Нельзя создать папку в файле.")
@@ -324,18 +325,18 @@ class FileManager(QMainWindow):
             self.undo_last_action()
 
     def record_action(self, action_type, **kwargs):
-        """Записывает действие в стек."""
+        """Writes the action to the stack."""
         self.action_stack.append({'type': action_type, 'data': kwargs})
 
     def get_backup_path(self):
-        """Получить путь к папке для резервных копий."""
+        """Get the folder path for backups."""
         backup_dir = os.path.join(os.getcwd(), "backups")
         if not os.path.exists(backup_dir):
             os.makedirs(backup_dir)
         return backup_dir
 
     def undo_last_action(self):
-        """Отменяет последнее действие."""
+        """Cancels the last action."""
 
         last_action = self.action_stack.pop()
         action_type = last_action['type']
